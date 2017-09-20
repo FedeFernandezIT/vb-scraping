@@ -22,9 +22,27 @@ Partial Class Form1
     'No lo modifique con el editor de código.
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
-        components = New System.ComponentModel.Container()
+        Me.panBrowser = New System.Windows.Forms.Panel()
+        Me.SuspendLayout
+        '
+        'panBrowser
+        '
+        Me.panBrowser.Location = New System.Drawing.Point(12, 12)
+        Me.panBrowser.Name = "panBrowser"
+        Me.panBrowser.Size = New System.Drawing.Size(1117, 557)
+        Me.panBrowser.TabIndex = 0
+        '
+        'Form1
+        '
+        Me.AutoScaleDimensions = New System.Drawing.SizeF(6!, 13!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
+        Me.ClientSize = New System.Drawing.Size(1141, 581)
+        Me.Controls.Add(Me.panBrowser)
+        Me.Name = "Form1"
         Me.Text = "Form1"
-    End Sub
+        Me.ResumeLayout(false)
 
+End Sub
+
+    Friend WithEvents panBrowser As Panel
 End Class
