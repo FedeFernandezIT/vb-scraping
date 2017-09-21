@@ -1,23 +1,32 @@
 ﻿Imports CefSharp.WinForms
 Imports CefSharp
- 
+Imports Microsoft.VisualBasic.CompilerServices
+
 Public Class Form1
  
     Private WithEvents browser As ChromiumWebBrowser
- 
+    Friend flags As Boolean
+    
     Public Sub New()
         InitializeComponent()
- 
+        
         Dim settings As New CefSettings()
         CefSharp.Cef.Initialize(settings)
- 
-        browser = New ChromiumWebBrowser("https://druidhillspreschool.org/relocate/index.php") With {
+        flags = False 
+        btnInit.Enabled = flags
+        
+        browser = New ChromiumWebBrowser("http://www.google.com.ar") With {
             .Dock = DockStyle.Fill
-            }
+        }        
         panBrowser.Controls.Add(browser)
- 
+        AddHandler browser.FrameLoadEnd, AddressOf WebBrowserFrameLoadEnd
+        'Threading.Thread.Sleep(10000)
     End Sub
-    
+
+    Private Sub WebBrowserFrameLoadEnd(sender As Object, e As FrameLoadEndEventArgs)
+        flags = True 
+    End Sub
+
     ''' <summary>
     ''' Abre el archivo
     ''' </summary>
@@ -26,6 +35,11 @@ Public Class Form1
     Private Sub btnOpen_Click(sender As Object, e As EventArgs) Handles btnOpen.Click
         OpenFileDialog.ShowDialog()
         Dim filename = OpenFileDialog.FileName
+        While Not btnInit.Enabled
+            btnInit.Enabled = flags
+            Threading.Thread.Sleep(10000)
+        End While
+         
         Try
             '========================================== 
             Dim separator As Char
@@ -70,78 +84,56 @@ Public Class Form1
         lblstatus.Text = "Autorizando donaciones..."
         lblstatus.ForeColor = Color.Yellow 
         ' Procesamos las donaciones
-        ProcessDonations()
+        browser.Load("https://druidhillspreschool.org/relocate/index.php")
+        Threading.Thread.Sleep(10000)
+        For Each row As DataGridViewRow In dgwDataCard.Rows
+            If row.Index = dgwDataCard.Rows.Count - 1  Then
+                Exit For 
+            End If                        
+            ProcessDonations(row.Index)
+        Next
     End Sub
 
     ''' <summary>
     ''' Procesa las donaciones de los registros de la grilla del fromulario
     ''' </summary>
-    Private Sub ProcessDonations()
-        
-        For Each row As DataGridViewRow In dgwDataCard.Rows
-            If row.Index = dgwDataCard.Rows.Count - 1  Then
-                Exit For 
-            End If                        
+    Private Async Sub ProcessDonations(index As Integer)
+
+            Dim row = dgwDataCard.Rows(index)
             Dim canReadResult = False 
             While Not canReadResult
                 lblstatus.Text = "Autorizando donaciones...#" + Convert.ToString(row.Index +1)
                 lblstatus.ForeColor = Color.Blue 
                 row.DefaultCellStyle.BackColor = Color.LightSkyBlue
-                'Navegamos a la web para donacion
-                browser.Load("http://www.google.com.ar")
-                'browser.Load("https://druidhillspreschool.org/relocate/index.php")                
                 
-                'Application.DoEvents
-                'While WebBrowser1.ReadyState <> WebBrowserReadyState.Complete 
-                '    Application.DoEvents 
-                'End While
-            
-                ''Valores por defecto
-                'For Each radio As HtmlElement In WebBrowser1.Document.All.GetElementsByName("radio_amount")
-                '    If radio.GetAttribute("value") = "other_amount" Then
-                '        radio.SetAttribute("checked", "true")
+
+                browser.EvaluateScriptAsync("document.getElementsByName('radio_amount')[5].checked=true").Wait()
+                browser.EvaluateScriptAsync("document.getElementsByName('other_amount')[0].value='1'").Wait()
+                browser.EvaluateScriptAsync("document.getElementsByName('name')[0].value='piero espire'").Wait()
+                browser.EvaluateScriptAsync("document.getElementsByName('email')[0].value='empresadeperritos@gmail.com'").Wait()
+                browser.EvaluateScriptAsync("document.getElementsByName('cardholder_name')[0].value='piero espire'").Wait()
+                
+                Dim carNumber = Conversions.ToString(row.Cells(0).Value)
+                browser.EvaluateScriptAsync($"document.querySelector('input[data-stripe=""number""]').value='{carNumber}'").Wait()
+
+                Dim carExpireMonth = Conversions.ToByte(row.Cells(1).Value).ToString()
+                browser.EvaluateScriptAsync($"document.querySelector('select[data-stripe=""exp-month""]').value='{carExpireMonth}'").Wait()
+
+                Dim carExpireYear = Conversions.ToInteger(row.Cells(2).Value).ToString()
+                browser.EvaluateScriptAsync($"document.querySelector('select[data-stripe=""exp-year""]').value='{carExpireYear}'").Wait()
+
+                Dim carCvc = Conversions.ToString(row.Cells(3).Value).ToString()
+                browser.EvaluateScriptAsync($"document.getElementsByName('cvc')[0].value='{carCvc}'").Wait()
+
+
+                browser.EvaluateScriptAsync($"document.getElementsByTagName('button')[0].click()").Wait()
+                'ContinueWith(
+                'Sub(x)
+                '    If x.IsCompleted Then
+                '        canReadResult = True
                 '    End If
-                'Next
-                'WebBrowser1.Document.All.GetElementsByName("other_amount").Item(0).SetAttribute("value", "1")
-                'WebBrowser1.Document.All.GetElementsByName("name").Item(0).SetAttribute("value", "piero espire")
-                'WebBrowser1.Document.All.GetElementsByName("email").Item(0).SetAttribute("value", "empresadeperritos@gmail.com")
-                'WebBrowser1.Document.All.GetElementsByName("cardholder_name").Item(0).SetAttribute("value", "piero espire")
-                'WebBrowser1.Document.All.GetElementsByName("cardholder_name").Item(0).SetAttribute("value", "piero espire")
-                'For Each input As HtmlElement In WebBrowser1.Document.GetElementsByTagName("input")
-                '    If input.GetAttribute("data-stripe") = "number" Then
-                '        input.SetAttribute("value", Conversions.ToString(row.Cells(0).Value))
-                '    End If                    
-                'Next
-                'For Each selectHtml As HtmlElement In WebBrowser1.Document.GetElementsByTagName("select")
-                '    If selectHtml.GetAttribute("data-stripe") = "exp-month" Then
-                '        selectHtml.SetAttribute("value", Conversions.ToByte(row.Cells(1).Value).ToString)
-                '    End If                    
-                '    If selectHtml.GetAttribute("data-stripe") = "exp-year" Then
-                '        selectHtml.SetAttribute("value", Conversions.ToInteger(row.Cells(2).Value).ToString)
-                '    End If                    
-                'Next
-                'WebBrowser1.Document.All.GetElementsByName("cvc").Item(0).SetAttribute("value", Conversions.ToString(row.Cells(3).Value))
-
-                'WebBrowser1.Document.GetElementById("input_6_1").SetAttribute("value", "1")
-                'WebBrowser1.Document.GetElementById("choice_6_9_1").SetAttribute("checked", "checked")            
-                'WebBrowser1.Document.GetElementById("input_6_3_3").SetAttribute("value", "piero")
-                'WebBrowser1.Document.GetElementById("input_6_3_6").SetAttribute("value", "espire")
-                'WebBrowser1.Document.GetElementById("input_6_5").SetAttribute("value", "empresadeperritos@gmail.com")          
-                'WebBrowser1.Document.GetElementById("input_6_4_1").SetAttribute("value", "9990 NW 14th Street")
-                'WebBrowser1.Document.GetElementById("input_6_4_3").SetAttribute("value", "miami")                                     
-                'WebBrowser1.Document.GetElementById("input_6_4_4").SetAttribute("value", "florida")
-                'WebBrowser1.Document.GetElementById("input_6_4_5").SetAttribute("value", "33126")
-                'WebBrowser1.Document.GetElementById("input_6_2_5").SetAttribute("value", "piero espire")
-                ''Selecionar United States
-                'Dim CountryElement As HtmlElement = WebBrowser1.Document.GetElementById("input_6_4_6")
-                'Dim UnitedStateElement As HtmlElement = CountryElement.GetElementsByTagName("option").Cast(Of HtmlElement).First(Function(el) el.GetAttribute("value") = "United States")
-                'UnitedStateElement.SetAttribute("selected", "true")
-                ''Valores de la grilla
-                'WebBrowser1.Document.GetElementById("input_6_2_1").SetAttribute("value", Conversions.ToString(row.Cells(0).Value))
-                'WebBrowser1.Document.GetElementById("input_6_2_2_month").SetAttribute("value", Conversions.ToString(row.Cells(1).Value))
-                'WebBrowser1.Document.GetElementById("input_6_2_2_year").SetAttribute("value", Conversions.ToString(row.Cells(2).Value))
-                'WebBrowser1.Document.GetElementById("input_6_2_3").SetAttribute("value", Conversions.ToString(row.Cells(3).Value))
-
+                'End Sub)
+                Threading.Thread.Sleep(20000)
                 ''Invocamos a subimit                
                 'Dim var = WebBrowser1.Document.Forms(0).InvokeMember("submit")
                 'Thread.Sleep(1500)                
@@ -171,9 +163,9 @@ Public Class Form1
                 '        canReadResult  = True 
                 '    End If                                    
                 'End While
-                canReadResult = True
-            End While            
-        Next
+                'canReadResult = True
+                
+            End While                    
         lblstatus.Text = "Proceso de autorización de donaciones finalizado"                
         lblstatus.ForeColor = Color.Black 
         'WebBrowser1.Visible = False 
